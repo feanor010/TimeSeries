@@ -39,10 +39,10 @@ fed = (FedotBuilder(problem="ts_forecasting")
        .setup_composition(timeout=com_par['learning_time'], preset=com_par['preset'], task_params=task.task_params)
        ).build()
 
-# chain = fed.fit(train_data)
+chain = fed.fit(train_data)
 
-# forecast = chain.predict(test_data)
-# forecast_values = forecast.predict
+forecast = chain.predict(test_data)
+forecast_values = forecast.predict
 
 def plot_forecast(train_data, test_data, forecast_data):
     plt.figure(figsize=(18, 7))
@@ -59,4 +59,4 @@ def plot_forecast(train_data, test_data, forecast_data):
     plt.legend()
     plt.show()
 
-# plot_forecast(train_data, test_data, forecast_values)
+plot_forecast(train_data, test_data, forecast_values)

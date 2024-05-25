@@ -7,27 +7,25 @@ from fedot.core.data.data_split import train_test_data_setup
 from fedot.core.repository.tasks import TaskTypesEnum, Task, TsForecastingParams
 from sklearn.metrics import mean_squared_error
 from pylab import rcParams
+def load_data(path):
+    return pd.read_csv(path, parse_dates=True)
 
+def filter_index(data_frame):
+    data_frame.drop(columns = ["Unnamed: 0"], inplace = True)
+
+def break_data(data_frame: pd.DataFrame):
+    datas = []
+
+    for column in data_frame:
+        prefix, index = str(column).split("_tag_")
+        if (prefix == "date"):
+            datas.append(pd.DataFrame(columns=["date", "values"]));
+            datas[int(index)]["date"] = data_frame[str(column)].dropna()
+        else:
+            datas[int(index)]["values"] = data_frame[str(column)].dropna()
+    return datas
 
 def pre_process():
-    def load_data(path):
-        return pd.read_csv(path, parse_dates=True)
-
-    def filter_index(data_frame):
-        data_frame.drop(columns = ["Unnamed: 0"], inplace = True)
-
-    def break_data(data_frame: pd.DataFrame):
-        datas = []
-
-        for column in data_frame:
-            prefix, index = str(column).split("_tag_")
-            if (prefix == "date"):
-                datas.append(pd.DataFrame(columns=["date", "values"]));
-                datas[int(index)]["date"] = data_frame[str(column)].dropna()
-            else:
-                datas[int(index)]["values"] = data_frame[str(column)].dropna()
-        return datas
-
     df = load_data("1_model.csv")
     filter_index(df)
 
@@ -78,19 +76,26 @@ def fedot_process(df: pd.DataFrame):
     # print(df.values())
     # times = df.set_index("time")
     print(df)
-    fed_data = InputData.from_dataframe(features_df=df[["date"]], task=task, target_df=df[["values"]])
+    fed_data = InputData.from_csv_time_series("test.csv", task=task, delimiter=",", target_column="value", index_col="DATE")
+    print(fed_data)
+    # fed_data = InputData.from_dataframe(features_df=df[["DATE"]], task=task, target_df=df[["value"]])
+    # fed_data = InputData.from_dataframe(features_df=df[["date"]], task=task, target_df=df[["values"]])
     model = build_fedot_model(compos_conf, task)
     # print(times)
     train_data, test_data = slice_train_test(fed_data)
-
+    print(train_data)
     # print(train_data)
     chain = model.fit(train_data)
+    print(train_data)
 
     # forecast = chain.predict(test_data)
     # forecast_values = forecast.predict
     # plot_forecast(train_data, test_data, forecast_values)
     
 
-frames = pre_process()
+# frames = pre_process()
 
-fedot_process(frames[0])
+# fedot_process(frames[0])
+
+fedot_process(load_data("test.csv"))
+

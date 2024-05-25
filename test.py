@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
@@ -92,17 +93,32 @@ def load_data(file_path):
 
 def groupData(df):
     result = []
-    for i in range (1, len(df.columns), 2):
+    for i in range(1, len(df.columns), 2):
         if (i + 1 < len(df.columns)):
-            result.append(pd.DataFrame({'time': df.iloc[:, i], 'value' : df.iloc[:, i+1]}))
+            result.append(pd.DataFrame({'time': pd.to_datetime(df.iloc[:, i], format='%Y-%m-%dT%H:%M:%S.%f', errors='coerce'), 'value': df.iloc[:, i + 1]}))
     return result
 
-def printGrapics(array):
-        for el in array:
-                print(el)
-                plt.plot(el['time'], str(el['value']))
-        plt.show()
+
+
+def printGraphics(array):
+    num_plots = len(array)
+    plt.figure(figsize=(10, num_plots * 3))  # Adjust the figure size as needed
+
+    for idx, el in enumerate(array):
+        el = el[el['value'].notna()]  # Filter out rows where 'value' is NaN
+        el['time'] = pd.to_datetime(el['time'])  # Ensure 'time' is in datetime format
+
+        ax = plt.subplot(num_plots, 1, idx + 1)  # Create a subplot for each element
+        ax.plot(el['time'], el['value'])
+        ax.set_xlabel('Time')
+        ax.set_ylabel('Value')
+        ax.set_title(f'Plot {idx + 1}')
+
+    plt.tight_layout()
+    plt.show()
+
+
 file_path = '1_model.csv'
 df = load_data(file_path)
 groupedData = groupData(df)
-printGrapics(groupedData)
+printGraphics(groupedData)

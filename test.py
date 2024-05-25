@@ -1,61 +1,93 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from statsmodels.tsa.statespace.sarimax import SARIMAX
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import SimpleRNN, Dense
+from sklearn.preprocessing import MinMaxScaler
 
+# Загрузка данных
 df = pd.read_csv("1_model.csv")
 
+# Преобразование дат
 date_columns = [col for col in df.columns if 'date_tag' in col]
 value_columns = [col for col in df.columns if 'value_tag' in col]
 
 for col in date_columns:
     df[col] = pd.to_datetime(df[col])
 
-
+# Удаление строк с пропущенными значениями в столбцах с датами и значениями
 df.dropna(subset=date_columns + value_columns, inplace=True)
 
+# Создание DataFrame для временных рядов
 data = pd.DataFrame()
 
+# Добавление столбцов с датами в качестве индексов
 for i, col in enumerate(date_columns):
     data[col] = df[col]
     data[f'Value_{i}'] = df[value_columns[i]]
 
+# Установка столбца с датами как индекс
 data.set_index(date_columns[0], inplace=True)
 
+# Интерполяция данных для заполнения пропущенных значений
 data.interpolate(method='ffill', inplace=True)
 
-num_plots = len(date_columns)
+# Разделение данных на числовые и даты
+numeric_data = data[value_columns]
+date_data = data[date_columns]
+# Нормализация числовых данных
+scaler = MinMaxScaler()
+numeric_data_normalized = scaler.fit_transform(numeric_data)
 
-num_cols = 2
-num_rows = (num_plots + num_cols - 1) // num_cols
+# Соединение числовых данных с датами
+data_normalized = pd.DataFrame(numeric_data_normalized, columns=numeric_data.columns)
+data_normalized[date_columns] = date_data
 
-fig, axs = plt.subplots(num_rows, num_cols, figsize=(14, 7*num_rows))
+# Функция для создания последовательностей временных рядов
+def create_sequences(data, seq_length):
+    X, y = [], []
+    for i in range(len(data) - seq_length):
+        X.append(data[i:i+seq_length])
+        y.append(data[i+seq_length])
+    return np.array(X), np.array(y)
 
-for i in range(num_plots):
-    y = data[f'Value_{i}']
+# Длина последовательности для обучения модели
+seq_length = 10
 
-    train = y[:'2022-03-15']
-    test = y['2022-03-15':]
+# Создание последовательностей
+X, y = create_sequences(data_normalized, seq_length)
 
-    model = SARIMAX(train, order=(5, 1, 0), seasonal_order=(1, 1, 1, 12))
-    model_fit = model.fit()
+# Разделение данных на обучающий и тестовый наборы
+split = int(0.8 * len(X))
+X_train, X_test = X[:split], X[split:]
+y_train, y_test = y[:split], y[split:]
 
-    forecast_steps = len(test)
-    y_pred = model_fit.forecast(steps=forecast_steps)
+# Создание модели RNN
+model = Sequential([
+    SimpleRNN(64, input_shape=(X_train.shape[1], X_train.shape[2]), return_sequences=True),
+    SimpleRNN(64),
+    Dense(y_train.shape[1])
+])
 
-    row = i // num_cols
-    col = i % num_cols
+# Компиляция модели
+model.compile(optimizer='adam', loss='mse')
 
-    axs[row, col].plot(train.index, train, label='Train')
-    axs[row, col].plot(test.index, test, label='Test')
-    axs[row, col].plot(test.index, y_pred, color='darkgreen', label='Predictions')
-    axs[row, col].set_title(f'Value_{i}')
-    axs[row, col].legend()
+# Обучение модели
+history = model.fit(X_train, y_train, epochs=50, batch_size=32, validation_split=0.2)
 
-for i in range(num_plots, num_rows * num_cols):
-    row = i // num_cols
-    col = i % num_cols
-    axs[row, col].remove()
+# Прогнозирование
+y_pred = model.predict(X_test)
 
-plt.tight_layout()
+# Восстановление оригинальных масштабов данных
+y_test_inv = scaler.inverse_transform(y_test)
+y_pred_inv = scaler.inverse_transform(y_pred)
+
+# Построение графиков
+plt.figure(figsize=(14, 7))
+plt.plot(y_test_inv, label='Actual')
+plt.plot(y_pred_inv, label='Predicted', color='darkgreen')
+plt.xlabel('Time')
+plt.ylabel('Value')
+plt.title('RNN Prediction')
+plt.legend()
 plt.show()

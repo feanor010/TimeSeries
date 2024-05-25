@@ -1,9 +1,9 @@
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.preprocessing import MinMaxScaler
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense, Dropout
+# import matplotlib.pyplot as plt
+# from sklearn.preprocessing import MinMaxScaler
+# from tensorflow.keras.models import Sequential
+# from tensorflow.keras.layers import LSTM, Dense, Dropout
 
 # Функция для загрузки данных из CSV
 # def load_data(file_path):
@@ -86,23 +86,40 @@ from tensorflow.keras.layers import LSTM, Dense, Dropout
 # file_path = 'test.csv'  # Укажите путь к вашему CSV файлу
 # main(file_path)
 
-def load_data(file_path):
-    data = pd.read_csv(file_path, parse_dates=True)
+# def load_data(file_path):
+#     data = pd.read_csv(file_path, parse_dates=True)
+#     return data
+
+# def groupData(df):
+#     result = []
+#     for i in range (1, len(df.columns), 2):
+#         if (i + 1 < len(df.columns)):
+#             result.append(pd.DataFrame({'time': df.iloc[:, i], 'value' : df.iloc[:, i+1]}))
+#     return result
+
+# def printGrapics(array):
+#         for el in array:
+#                 print(el)
+#                 plt.plot(el['time'], str(el['value']))
+#         plt.show()
+# file_path = '1_model.csv'
+# df = load_data(file_path)
+# groupedData = groupData(df)
+# printGrapics(groupedData)
+
+def load_data(path):
+    data = pd.read_csv(path, parse_dates=['date_tag_0', 'date_tag_1', 'date_tag_2', 'date_tag_3', 'date_tag_4'])
     return data
 
-def groupData(df):
-    result = []
-    for i in range (1, len(df.columns), 2):
-        if (i + 1 < len(df.columns)):
-            result.append(pd.DataFrame({'time': df.iloc[:, i], 'value' : df.iloc[:, i+1]}))
-    return result
+def filter(df):
+    df.drop(columns = ["Unnamed: 0"], inplace = True)
 
-def printGrapics(array):
-        for el in array:
-                print(el)
-                plt.plot(el['time'], str(el['value']))
-        plt.show()
-file_path = '1_model.csv'
-df = load_data(file_path)
-groupedData = groupData(df)
-printGrapics(groupedData)
+df = load_data("1_model.csv")
+# print(df)
+filter(df)
+date_cols = [col for col in df.columns if 'date_tag' in col]
+value_cols = [col for col in df.columns if 'value_tag' in col]
+
+# print(df)
+
+# df.drop(columns=[""])

@@ -17,7 +17,7 @@ task = Task(TaskTypesEnum.ts_forecasting, TsForecastingParams(forecast_length=75
 
 # Загрузка данных
 data = InputData.from_csv_time_series("test.csv", task=task, delimiter=",", target_column="value", index_col="DATE")
-
+print(data)
 # Разделение данных на обучающую и тестовую выборки
 train_data, test_data = train_test_data_setup(data)
 print(train_data)

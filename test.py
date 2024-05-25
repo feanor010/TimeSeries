@@ -3,91 +3,82 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import SimpleRNN, Dense
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import StandardScaler
 
-# Загрузка данных
+# Load the data
 df = pd.read_csv("1_model.csv")
 
-# Преобразование дат
+# Convert date columns to datetime
 date_columns = [col for col in df.columns if 'date_tag' in col]
 value_columns = [col for col in df.columns if 'value_tag' in col]
 
 for col in date_columns:
     df[col] = pd.to_datetime(df[col])
 
-# Удаление строк с пропущенными значениями в столбцах с датами и значениями
+# Drop rows with missing values
 df.dropna(subset=date_columns + value_columns, inplace=True)
 
-# Создание DataFrame для временных рядов
-data = pd.DataFrame()
+# Interpolate missing values
+df.interpolate(method='ffill', inplace=True)
 
-# Добавление столбцов с датами в качестве индексов
-for i, col in enumerate(date_columns):
-    data[col] = df[col]
-    data[f'Value_{i}'] = df[value_columns[i]]
+# Ensure all columns are numeric
+df[value_columns] = df[value_columns].apply(pd.to_numeric, errors='coerce')
 
-# Установка столбца с датами как индекс
-data.set_index(date_columns[0], inplace=True)
+# Remove rows with missing values after interpolation
+df.dropna(inplace=True)
 
-# Интерполяция данных для заполнения пропущенных значений
-data.interpolate(method='ffill', inplace=True)
-
-# Разделение данных на числовые и даты
-numeric_data = data[value_columns]
-date_data = data[date_columns]
-# Нормализация числовых данных
-scaler = MinMaxScaler()
-numeric_data_normalized = scaler.fit_transform(numeric_data)
-
-# Соединение числовых данных с датами
-data_normalized = pd.DataFrame(numeric_data_normalized, columns=numeric_data.columns)
-data_normalized[date_columns] = date_data
-
-# Функция для создания последовательностей временных рядов
-def create_sequences(data, seq_length):
-    X, y = [], []
-    for i in range(len(data) - seq_length):
-        X.append(data[i:i+seq_length])
-        y.append(data[i+seq_length])
-    return np.array(X), np.array(y)
-
-# Длина последовательности для обучения модели
+# Create sequences
 seq_length = 10
 
-# Создание последовательностей
-X, y = create_sequences(data_normalized, seq_length)
+X = []
+y = []
 
-# Разделение данных на обучающий и тестовый наборы
+for i in range(len(df) - seq_length):
+    X.append(df[value_columns].iloc[i:i+seq_length].values)
+    y.append(df[value_columns].iloc[i+seq_length].values)
+
+X = np.array(X)
+y = np.array(y)
+
+# Split the data into training and testing sets
 split = int(0.8 * len(X))
 X_train, X_test = X[:split], X[split:]
 y_train, y_test = y[:split], y[split:]
 
-# Создание модели RNN
+# Create the RNN model
 model = Sequential([
     SimpleRNN(64, input_shape=(X_train.shape[1], X_train.shape[2]), return_sequences=True),
     SimpleRNN(64),
     Dense(y_train.shape[1])
 ])
 
-# Компиляция модели
+# Compile the model
 model.compile(optimizer='adam', loss='mse')
 
-# Обучение модели
-history = model.fit(X_train, y_train, epochs=50, batch_size=32, validation_split=0.2)
+# Train the model
+history = model.fit(X_train, y_train, epochs=200, batch_size=32, validation_split=0.2)
 
-# Прогнозирование
+# Make predictions
 y_pred = model.predict(X_test)
 
-# Восстановление оригинальных масштабов данных
-y_test_inv = scaler.inverse_transform(y_test)
-y_pred_inv = scaler.inverse_transform(y_pred)
+# Plot the results
+num_plots = len(value_columns)
 
-# Построение графиков
-plt.figure(figsize=(14, 7))
-plt.plot(y_test_inv, label='Actual')
-plt.plot(y_pred_inv, label='Predicted', color='darkgreen')
-plt.xlabel('Time')
-plt.ylabel('Value')
-plt.title('RNN Prediction')
-plt.legend()
+num_cols = 2
+num_rows = (num_plots + num_cols - 1) // num_cols
+
+fig, axs = plt.subplots(num_rows, num_cols, figsize=(14, 7*num_rows))
+
+for i in range(num_plots):
+    row = i // num_cols
+    col = i % num_cols
+
+    axs[row, col].plot(df[date_columns[-len(X_test):]].iloc[:, 0][:len(y_test)], y_test[:, i], label='Actual')
+    axs[row, col].plot(df[date_columns[-len(X_test):]].iloc[:, 0][:len(y_test)], y_pred[:, i], label='Predicted', color='darkgreen')
+    axs[row, col].set_xlabel('Time')
+    axs[row, col].set_ylabel('Value')
+    axs[row, col].set_title(f'Time Series {i+1}')
+    axs[row, col].legend()
+
+plt.tight_layout()
 plt.show()

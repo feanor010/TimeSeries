@@ -7,7 +7,7 @@ from tensorflow.keras.layers import LSTM, Dense, Dropout
 
 # Функция для загрузки данных из CSV
 def load_data(file_path):
-    data = pd.read_csv(file_path, index_col='DATE', parse_dates=True)
+    data = pd.read_csv(file_path, parse_dates=True)
     return data
 
 # Функция для нормализации данных
@@ -27,9 +27,9 @@ def create_dataset(data, time_steps=1):
 # Функция для построения графика
 def plot_data(data, predictions=None, title='Time Series Data'):
     plt.figure(figsize=(10, 6))
-    plt.plot(lastData, label='Actual Data')
+    plt.plot(data, label='Actual Data')
     if predictions is not None:
-        plt.plot(range(len(lastData), len(lastData) + len(predictions)), predictions, label='Predictions')
+        plt.plot(range(len(data), len(data) + len(predictions)), predictions, label='Predictions')
     plt.title(title)
     plt.xlabel('Time')
     plt.ylabel('Values')
@@ -50,12 +50,12 @@ def train_lstm_model(X_train, y_train, epochs=20, batch_size=32):
     return model
 
 # Основная функция для загрузки данных, нормализации, обучения модели и прогнозирования
-def main(file_path, time_steps=50, epochs=10, batch_size=32, future_steps=1000):
+def main(file_path, time_steps=20, epochs=10, batch_size=32, future_steps=1000):
     data = load_data(file_path)
     print("Data loaded successfully.")
 
     # Нормализация данных
-    data_normalized, scaler = normalize_data(data)
+    data_normalized, scaler = normalize_data(data.iloc[:, 1::2].values)  # Considering only the value columns for normalization
     print("Data normalized successfully.")
 
     # Подготовка данных для LSTM
@@ -77,9 +77,11 @@ def main(file_path, time_steps=50, epochs=10, batch_size=32, future_steps=1000):
         current_batch = np.append(current_batch[:, 1:, :], [[current_pred]], axis=1)
     predictions = scaler.inverse_transform(predictions)
     print("Future data predicted successfully.")
+
     # Построение графика
-    plot_data(data, predictions, title='Time Series Data and Predictions')
+    plot_data(data.iloc[:, 1].values, predictions, title='Time Series Data and Predictions')  # Plotting only the first value column
     print("Graph plotted successfully.")
+
 # Вызов основной функции
 file_path = 'test.csv'  # Укажите путь к вашему CSV файлу
 main(file_path)

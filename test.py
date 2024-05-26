@@ -1,124 +1,156 @@
+import tkinter as tk
+from tkinter import filedialog
+from tkinter import ttk
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
+from tensorflow.keras.optimizers import Adam
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-# Функция для загрузки данных из CSV
-# def load_data(file_path):
-#     data = pd.read_csv(file_path, index_col='DATE', parse_dates=True)
-#     return data
+class TimeSeriesPredictorApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Time Series Predictor")
+        self.epochs_label = tk.Label(root, text="Epochs:")
+        self.epochs_label.pack()
+        self.epochs_entry = tk.Entry(root)
+        self.epochs_entry.insert(tk.END, "5") 
+        self.epochs_entry.pack()
+        self.filename = None
+        self.df = None
+        self.scaler = MinMaxScaler()
+        self.date_columns = []
+        self.value_columns = []
+        self.split_ratio_label = None
+        self.select_file_button = tk.Button(root, text="Select File", command=self.load_file)
+        self.select_file_button.pack()
 
-# # Функция для нормализации данных
-# def normalize_data(data):
-#     scaler = MinMaxScaler()
-#     data_normalized = scaler.fit_transform(data)
-#     return data_normalized, scaler
+        self.split_ratio_slider = ttk.Scale(root, from_=0.8, to=0.99, orient='horizontal', command=self.update_split_ratio)
+        self.split_ratio_slider.set(0.9)
+        self.split_ratio_slider.pack()
+        self.split_ratio_label = tk.Label(root, text="Split Ratio: 0.9")
+        self.split_ratio_label.pack()
 
-# # Функция для подготовки данных для LSTM
-# def create_dataset(data, time_steps=1):
-#     X, y = [], []
-#     for i in range(len(data) - time_steps):
-#         X.append(data[i:(i + time_steps)])
-#         y.append(data[i + time_steps])
-#     return np.array(X), np.array(y)
+        self.train_button = tk.Button(root, text="Train and Predict", command=self.train_and_predict)
+        self.train_button.pack()
 
-# # Функция для построения графика
-# def plot_data(data, predictions=None, title='Time Series Data'):
-#     lastData = data.values[19000:19600:1]
-#     plt.figure(figsize=(10, 6))
-#     plt.plot(lastData, label='Actual Data')
-#     if predictions is not None:
-#         plt.plot(range(len(lastData), len(lastData) + len(predictions)), predictions, label='Predictions')
-#     plt.title(title)
-#     plt.xlabel('Time')
-#     plt.ylabel('Values')
-#     plt.legend()
-#     plt.show()
+        self.plot_frame = tk.Frame(root)
+        self.plot_frame.pack()
 
-# # Функция для создания и обучения модели LSTM
-# def train_lstm_model(X_train, y_train, epochs=20, batch_size=32):
-#     model = Sequential()
-#     model.add(LSTM(units=50, return_sequences=True, input_shape=(X_train.shape[1], X_train.shape[2])))
-#     model.add(Dropout(0.2))
-#     model.add(LSTM(units=50))
-#     model.add(Dropout(0.2))
-#     model.add(Dense(units=1))
+    def load_file(self):
+        self.filename = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
+        if self.filename:
+            self.df = pd.read_csv(self.filename)
+            self.preprocess_data()
 
-#     model.compile(optimizer='adam', loss='mean_squared_error')
-#     model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, validation_split=0.1)
-#     return model
+    def preprocess_data(self):
+        if self.df is not None:
+            self.date_columns = [col for col in self.df.columns if 'date_tag' in col]
+            self.value_columns = [col for col in self.df.columns if 'value_tag' in col]
 
-# # Основная функция для загрузки данных, нормализации, обучения модели и прогнозирования
-# def main(file_path, time_steps=50, epochs=10, batch_size=32, future_steps=1000):
-#     data = load_data(file_path)
-#     print("Data loaded successfully.")
+            for col in self.date_columns:
+                self.df[col] = pd.to_datetime(self.df[col])
 
-#     # Нормализация данных
-#     data_normalized, scaler = normalize_data(data)
-#     print("Data normalized successfully.")
+            self.df.dropna(subset=self.date_columns + self.value_columns, inplace=True)
+            self.df.interpolate(method='ffill', inplace=True)
+            self.df[self.value_columns] = self.df[self.value_columns].apply(pd.to_numeric, errors='coerce')
+            self.df.dropna(inplace=True)
 
-#     # Подготовка данных для LSTM
-#     X, y = create_dataset(data_normalized, time_steps)
-#     X_train, X_test = X[:-future_steps], X[-future_steps:]
-#     y_train, y_test = y[:-future_steps], y[-future_steps:]
-#     print("Data prepared for LSTM successfully.")
+            self.df[self.value_columns] = self.scaler.fit_transform(self.df[self.value_columns])
 
-#     # Обучение модели LSTM
-#     model = train_lstm_model(X_train, y_train, epochs, batch_size)
-#     print("LSTM model trained successfully.")
+    def update_split_ratio(self, val):
+        self.split_ratio_label.config(text=f"Split Ratio: {float(val):.2f}")
 
-#     # Прогнозирование будущих значений
-#     predictions = []
-#     current_batch = X_test[0].reshape((1, time_steps, X_test.shape[2]))
-#     for i in range(future_steps):
-#         current_pred = model.predict(current_batch)[0]
-#         predictions.append(current_pred)
-#         current_batch = np.append(current_batch[:, 1:, :], [[current_pred]], axis=1)
-#     predictions = scaler.inverse_transform(predictions)
-#     print("Future data predicted successfully.")
-#     # Построение графика
-#     plot_data(data, predictions, title='Time Series Data and Predictions')
-#     print("Graph plotted successfully.")
+    def train_and_predict(self):
+        if self.df is None:
+            return
 
-# # Вызов основной функции
-# file_path = 'test.csv'  # Укажите путь к вашему CSV файлу
-# main(file_path)
+        split_ratio = self.split_ratio_slider.get()
+        seq_length = 10
+        X, y = [], []
 
-def load_data(file_path):
-    data = pd.read_csv(file_path, parse_dates=True)
-    return data
+        for i in range(len(self.df) - seq_length):
+            X.append(self.df[self.value_columns].iloc[i:i+seq_length].values)
+            y.append(self.df[self.value_columns].iloc[i+seq_length].values)
 
-def groupData(df):
-    result = []
-    for i in range(1, len(df.columns), 2):
-        if (i + 1 < len(df.columns)):
-            result.append(pd.DataFrame({'time': pd.to_datetime(df.iloc[:, i], format='%Y-%m-%dT%H:%M:%S.%f', errors='coerce'), 'value': df.iloc[:, i + 1]}))
-    return result
+        X = np.array(X)
+        y = np.array(y)
 
+        split = int(split_ratio * len(X))
+        X_train, X_test = X[:split], X[split:]
+        y_train, y_test = y[:split], y[split:]
 
+        epochs = int(self.epochs_entry.get())  # Getting epochs value from entry
 
-def printGraphics(array):
-    num_plots = len(array)
-    plt.figure(figsize=(10, num_plots * 3))  # Adjust the figure size as needed
+        model = Sequential([
+            LSTM(256, input_shape=(X_train.shape[1], X_train.shape[2]), return_sequences=True),
+            Dropout(0.2),
+            LSTM(256, return_sequences=True),
+            Dropout(0.2),
+            LSTM(128),
+            Dense(y_train.shape[1])
+        ])
 
-    for idx, el in enumerate(array):
-        el = el[el['value'].notna()]  # Filter out rows where 'value' is NaN
-        el['time'] = pd.to_datetime(el['time'])  # Ensure 'time' is in datetime format
+        model.compile(optimizer=Adam(learning_rate=0.001), loss='mse')
+        history = model.fit(X_train, y_train, epochs=epochs, batch_size=32, validation_split=0.01)  # Using epochs value
+        y_pred = model.predict(X_test)
 
-        ax = plt.subplot(num_plots, 1, idx + 1)  # Create a subplot for each element
-        ax.plot(el['time'], el['value'])
-        ax.set_xlabel('Time')
-        ax.set_ylabel('Value')
-        ax.set_title(f'Plot {idx + 1}')
+        y_train_denorm = self.scaler.inverse_transform(y_train)
+        y_test_denorm = self.scaler.inverse_transform(y_test)
+        y_pred_denorm = self.scaler.inverse_transform(y_pred)
 
-    plt.tight_layout()
-    plt.show()
+        metrics = {}
+        for i, col in enumerate(self.value_columns):
+            mae = mean_absolute_error(y_test_denorm[:, i], y_pred_denorm[:, i])
+            mse = mean_squared_error(y_test_denorm[:, i], y_pred_denorm[:, i])
+            metrics[col] = {'MAE': mae, 'MSE': mse}
+            print(f'{col}: MAE = {mae:.4f}, MSE = {mse:.4f}')
 
+        self.plot_results(y_train_denorm, y_test_denorm, y_pred_denorm, metrics)
 
-file_path = '1_model.csv'
-df = load_data(file_path)
-groupedData = groupData(df)
-printGraphics(groupedData)
+    def plot_results(self, y_train_denorm, y_test_denorm, y_pred_denorm, metrics):
+        for widget in self.plot_frame.winfo_children():
+            widget.destroy()
+
+        num_plots = len(self.value_columns)
+        num_cols = 2
+        num_rows = (num_plots + num_cols - 1) // num_cols
+
+        fig, axs = plt.subplots(num_rows, num_cols, figsize=(14, 7*num_rows))
+        concat_array = np.vstack([y_train_denorm, y_test_denorm])
+        
+        if num_plots == 1:
+            axs = [axs]
+
+        real_indices = np.arange(len(y_test_denorm) + len(y_train_denorm))
+        pred_indices = np.arange(len(y_test_denorm) - len(y_pred_denorm), len(y_test_denorm))
+        real_dates = self.df[self.date_columns[0]].iloc[real_indices].values
+        pred_dates = self.df[self.date_columns[0]].iloc[int(self.split_ratio_slider.get() * len(self.df)) + pred_indices].values
+
+        for i, ax in enumerate(axs.flat):
+            if i >= num_plots:
+                ax.axis('off')
+                continue
+            ax.plot(real_dates, concat_array[:, i], label=f'Real {self.value_columns[i]}', color='blue', linestyle='--')
+            ax.plot(pred_dates, y_pred_denorm[:, i], label=f'Predicted {self.value_columns[i]}', color='red', linestyle ='-')
+            ax.set_xlabel('Time')
+            ax.set_ylabel('Value')
+            ax.set_title(f'Comparison of {self.value_columns[i]} over the whole test period')
+            ax.text(1, 1, f"MAE: {metrics[self.value_columns[i]]['MAE']:.4f}\nMSE: {metrics[self.value_columns[i]]['MSE']:.4f}",
+                    transform=ax.transAxes, fontsize=12, verticalalignment='top', horizontalalignment='right',
+                    bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+            ax.legend()
+
+        plt.tight_layout()
+        canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)
+        canvas.draw()
+        canvas.get_tk_widget().pack()
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = TimeSeriesPredictorApp(root)
+    root.mainloop()

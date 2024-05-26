@@ -15,7 +15,11 @@ class TimeSeriesPredictorApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Time Series Predictor")
-
+        self.epochs_label = tk.Label(root, text="Epochs:")
+        self.epochs_label.pack()
+        self.epochs_entry = tk.Entry(root)
+        self.epochs_entry.insert(tk.END, "5")  # Default value
+        self.epochs_entry.pack()
         self.filename = None
         self.df = None
         self.scaler = MinMaxScaler()
@@ -27,7 +31,7 @@ class TimeSeriesPredictorApp:
         self.select_file_button.pack()
 
         # Split ratio slider
-        self.split_ratio_slider = ttk.Scale(root, from_=0.1, to=0.9, orient='horizontal', command=self.update_split_ratio)
+        self.split_ratio_slider = ttk.Scale(root, from_=0.8, to=0.99, orient='horizontal', command=self.update_split_ratio)
         self.split_ratio_slider.set(0.9)
         self.split_ratio_slider.pack()
         self.split_ratio_label = tk.Label(root, text="Split Ratio: 0.9")
@@ -84,6 +88,8 @@ class TimeSeriesPredictorApp:
         X_train, X_test = X[:split], X[split:]
         y_train, y_test = y[:split], y[split:]
 
+        epochs = int(self.epochs_entry.get())  # Getting epochs value from entry
+
         model = Sequential([
             LSTM(256, input_shape=(X_train.shape[1], X_train.shape[2]), return_sequences=True),
             Dropout(0.2),
@@ -94,7 +100,7 @@ class TimeSeriesPredictorApp:
         ])
 
         model.compile(optimizer=Adam(learning_rate=0.001), loss='mse')
-        history = model.fit(X_train, y_train, epochs=5, batch_size=32, validation_split=0.01)
+        history = model.fit(X_train, y_train, epochs=epochs, batch_size=32, validation_split=0.01)  # Using epochs value
         y_pred = model.predict(X_test)
 
         y_train_denorm = self.scaler.inverse_transform(y_train)

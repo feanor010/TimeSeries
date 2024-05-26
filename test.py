@@ -11,6 +11,11 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
+conf = {
+    "seq_len": 10,
+    "valid_splt": 0.01
+}
+
 class TimeSeriesPredictorApp:
     def __init__(self, root):
         self.root = root
@@ -70,7 +75,7 @@ class TimeSeriesPredictorApp:
             return
 
         split_ratio = self.split_ratio_slider.get()
-        seq_length = 10
+        seq_length = conf['seq_len']
         X, y = [], []
 
         for i in range(len(self.df) - seq_length):
@@ -84,7 +89,7 @@ class TimeSeriesPredictorApp:
         X_train, X_test = X[:split], X[split:]
         y_train, y_test = y[:split], y[split:]
 
-        epochs = int(self.epochs_entry.get())  # Getting epochs value from entry
+        epochs = int(self.epochs_entry.get()) 
 
         model = Sequential([
             LSTM(256, input_shape=(X_train.shape[1], X_train.shape[2]), return_sequences=True),
@@ -96,7 +101,7 @@ class TimeSeriesPredictorApp:
         ])
 
         model.compile(optimizer=Adam(learning_rate=0.001), loss='mse')
-        history = model.fit(X_train, y_train, epochs=epochs, batch_size=32, validation_split=0.01)  # Using epochs value
+        history = model.fit(X_train, y_train, epochs=epochs, batch_size=32, validation_split=conf['valid_splt']) 
         y_pred = model.predict(X_test)
 
         y_train_denorm = self.scaler.inverse_transform(y_train)

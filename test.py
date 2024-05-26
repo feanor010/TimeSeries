@@ -34,7 +34,7 @@ for i in range(len(df) - seq_length):
 X = np.array(X)
 y = np.array(y)
 
-split = int(0.8 * len(X))
+split = int(0.9 * len(X))
 X_train, X_test = X[:split], X[split:]
 y_train, y_test = y[:split], y[split:]
 
@@ -48,7 +48,7 @@ model = Sequential([
 
 model.compile(optimizer=Adam(learning_rate=0.001), loss='mse')
 
-history = model.fit(X_train, y_train, epochs=100, batch_size=64, validation_split=0.05)
+history = model.fit(X_train, y_train, epochs=100, batch_size=64, validation_split=0.001)
 
 y_pred = model.predict(X_test)
 

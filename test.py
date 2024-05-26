@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.layers import Bidirectional
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
@@ -23,7 +24,7 @@ df.dropna(inplace=True)
 scaler = MinMaxScaler()
 df[value_columns] = scaler.fit_transform(df[value_columns])
 
-seq_length = 5
+seq_length = 10
 X = []
 y = []
 
@@ -39,16 +40,17 @@ X_train, X_test = X[:split], X[split:]
 y_train, y_test = y[:split], y[split:]
 
 model = Sequential([
-    LSTM(128, input_shape=(X_train.shape[1], X_train.shape[2]), return_sequences=True),
+    LSTM(256, input_shape=(X_train.shape[1], X_train.shape[2]), return_sequences=True),
+    Dropout(0.2),
+    LSTM(256, return_sequences=True),
     Dropout(0.2),
     LSTM(128),
-    Dropout(0.2),
     Dense(y_train.shape[1])
 ])
 
 model.compile(optimizer=Adam(learning_rate=0.001), loss='mse')
 
-history = model.fit(X_train, y_train, epochs=1, batch_size=64, validation_split=0.001)
+history = model.fit(X_train, y_train, epochs=100, batch_size=32, validation_split=0.01)
 
 y_pred = model.predict(X_test)
 

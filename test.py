@@ -47,7 +47,7 @@ model = Sequential([
 
 model.compile(optimizer=Adam(learning_rate=0.001), loss='mse')
 
-history = model.fit(X_train, y_train, epochs=1, batch_size=64, validation_split=0.05)
+history = model.fit(X_train, y_train, epochs=100, batch_size=64, validation_split=0.05)
 
 y_pred = model.predict(X_test)
 y_train_denorm = scaler.inverse_transform(y_train)
@@ -71,8 +71,8 @@ for i in range(num_plots):
     pred_indices = np.arange(len(y_test) - len(y_pred), len(y_test))
     real_dates = df[date_columns[0]].iloc[real_indices].values
     pred_dates = df[date_columns[0]].iloc[split + pred_indices].values
-    axs[row, col].plot(real_dates, concat_array[:, i], label=f'Реальные {value_columns[i]}', color='blue', linestyle='-')
-    axs[row, col].plot(pred_dates, y_pred_denorm[:, i], label=f'Предсказанные {value_columns[i]}', color='green', linestyle='--')
+    axs[row, col].plot(real_dates, concat_array[:, i], label=f'Реальные {value_columns[i]}', color='blue', linestyle='--')
+    axs[row, col].plot(pred_dates, y_pred_denorm[:, i], label=f'Предсказанные {value_columns[i]}', color='red', linestyle='-')
     axs[row, col].set_xlabel('Время')
     axs[row, col].set_ylabel('Значение')
     axs[row, col].set_title(f'Сравнение {value_columns[i]} на всём тестовом периоде')

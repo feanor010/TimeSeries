@@ -18,7 +18,7 @@ class TimeSeriesPredictorApp:
         self.epochs_label = tk.Label(root, text="Epochs:")
         self.epochs_label.pack()
         self.epochs_entry = tk.Entry(root)
-        self.epochs_entry.insert(tk.END, "5")  # Default value
+        self.epochs_entry.insert(tk.END, "5") 
         self.epochs_entry.pack()
         self.filename = None
         self.df = None
@@ -26,22 +26,18 @@ class TimeSeriesPredictorApp:
         self.date_columns = []
         self.value_columns = []
         self.split_ratio_label = None
-        # File selection
         self.select_file_button = tk.Button(root, text="Select File", command=self.load_file)
         self.select_file_button.pack()
 
-        # Split ratio slider
         self.split_ratio_slider = ttk.Scale(root, from_=0.8, to=0.99, orient='horizontal', command=self.update_split_ratio)
         self.split_ratio_slider.set(0.9)
         self.split_ratio_slider.pack()
         self.split_ratio_label = tk.Label(root, text="Split Ratio: 0.9")
         self.split_ratio_label.pack()
 
-        # Train button
         self.train_button = tk.Button(root, text="Train and Predict", command=self.train_and_predict)
         self.train_button.pack()
 
-        # Plot area
         self.plot_frame = tk.Frame(root)
         self.plot_frame.pack()
 

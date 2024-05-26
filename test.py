@@ -5,8 +5,9 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras.optimizers import Adam
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import mean_absolute_error, mean_squared_error
 
-df = pd.read_csv("3_model.csv")
+df = pd.read_csv("test/3_model_test.csv")
 
 date_columns = [col for col in df.columns if 'date_tag' in col]
 value_columns = [col for col in df.columns if 'value_tag' in col]
@@ -33,7 +34,7 @@ for i in range(len(df) - seq_length):
 X = np.array(X)
 y = np.array(y)
 
-split = int(0.9 * len(X))
+split = int(0.8 * len(X))
 X_train, X_test = X[:split], X[split:]
 y_train, y_test = y[:split], y[split:]
 
@@ -50,33 +51,52 @@ model.compile(optimizer=Adam(learning_rate=0.001), loss='mse')
 history = model.fit(X_train, y_train, epochs=100, batch_size=64, validation_split=0.05)
 
 y_pred = model.predict(X_test)
+
 y_train_denorm = scaler.inverse_transform(y_train)
 y_test_denorm = scaler.inverse_transform(y_test)
 y_pred_denorm = scaler.inverse_transform(y_pred)
+
+metrics = {}
 for i, col in enumerate(value_columns):
-    mean_real = np.mean(y_test_denorm[:, i])
-    mean_pred = np.mean(y_pred_denorm[:, i])
-    print(f'{col}: Среднее реальное значение = {mean_real:.4f}, Среднее предсказанное значение = {mean_pred:.4f}')
+    mae = mean_absolute_error(y_test_denorm[:, i], y_pred_denorm[:, i])
+    mse = mean_squared_error(y_test_denorm[:, i], y_pred_denorm[:, i])
+    metrics[col] = {'MAE': mae, 'MSE': mse}
+    print(f'{col}: MAE = {mae:.4f}, MSE = {mse:.4f}')
 
 num_plots = len(value_columns)
 num_cols = 2
 num_rows = (num_plots + num_cols - 1) // num_cols
 concat_array = np.vstack([y_train_denorm, y_test_denorm])
+
 fig, axs = plt.subplots(num_rows, num_cols, figsize=(14, 7*num_rows))
+
 for i in range(num_plots):
     row = i // num_cols
     col = i % num_cols
 
     real_indices = np.arange(len(y_test) + len(y_train))
     pred_indices = np.arange(len(y_test) - len(y_pred), len(y_test))
+
     real_dates = df[date_columns[0]].iloc[real_indices].values
     pred_dates = df[date_columns[0]].iloc[split + pred_indices].values
+
     axs[row, col].plot(real_dates, concat_array[:, i], label=f'Реальные {value_columns[i]}', color='blue', linestyle='--')
     axs[row, col].plot(pred_dates, y_pred_denorm[:, i], label=f'Предсказанные {value_columns[i]}', color='red', linestyle='-')
     axs[row, col].set_xlabel('Время')
     axs[row, col].set_ylabel('Значение')
     axs[row, col].set_title(f'Сравнение {value_columns[i]} на всём тестовом периоде')
-    axs[row, col].legend()
+    axs[row, col].text(0.5, 0.95, f"MAE: {metrics[value_columns[i]]['MAE']:.4f}\nMSE: {metrics[value_columns[i]]['MSE']:.4f}",
+                       transform=axs[row, col].transAxes, fontsize=12, verticalalignment='top',
+                       bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
 
 plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(10, 6))
+plt.plot(history.history['loss'], label='Loss (обучение)')
+plt.plot(history.history['val_loss'], label='Loss (валидация)')
+plt.title('График обучения и валидации')
+plt.xlabel('Эпоха')
+plt.ylabel('Loss')
+plt.legend()
 plt.show()

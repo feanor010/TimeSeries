@@ -34,7 +34,7 @@ for i in range(len(df) - seq_length):
 X = np.array(X)
 y = np.array(y)
 
-split = int(0.9 * len(X))
+split = int(0.995 * len(X))
 X_train, X_test = X[:split], X[split:]
 y_train, y_test = y[:split], y[split:]
 
@@ -48,7 +48,7 @@ model = Sequential([
 
 model.compile(optimizer=Adam(learning_rate=0.001), loss='mse')
 
-history = model.fit(X_train, y_train, epochs=100, batch_size=64, validation_split=0.001)
+history = model.fit(X_train, y_train, epochs=1, batch_size=64, validation_split=0.001)
 
 y_pred = model.predict(X_test)
 
@@ -85,18 +85,10 @@ for i in range(num_plots):
     axs[row, col].set_xlabel('Время')
     axs[row, col].set_ylabel('Значение')
     axs[row, col].set_title(f'Сравнение {value_columns[i]} на всём тестовом периоде')
-    axs[row, col].text(0.5, 0.95, f"MAE: {metrics[value_columns[i]]['MAE']:.4f}\nMSE: {metrics[value_columns[i]]['MSE']:.4f}",
-                       transform=axs[row, col].transAxes, fontsize=12, verticalalignment='top',
-                       bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+    axs[row, col].text(1, 1, f"MAE: {metrics[value_columns[i]]['MAE']:.4f}\nMSE: {metrics[value_columns[i]]['MSE']:.4f}",
+                   transform=axs[row, col].transAxes, fontsize=12, verticalalignment='top', horizontalalignment='right',
+                   bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
 
 plt.tight_layout()
-plt.show()
-
-plt.figure(figsize=(10, 6))
-plt.plot(history.history['loss'], label='Loss (обучение)')
-plt.plot(history.history['val_loss'], label='Loss (валидация)')
-plt.title('График обучения и валидации')
-plt.xlabel('Эпоха')
-plt.ylabel('Loss')
 plt.legend()
 plt.show()
